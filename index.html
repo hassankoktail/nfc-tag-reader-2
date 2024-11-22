@@ -69,8 +69,8 @@
         handleVerification(uidFromUrl);
       } else {
         // If no UID in URL, attempt NFC scanning (original functionality
-        if ("NFCReader" in window) {
-          const nfcReader = new NFCReader();
+        if ("NDEFReader" in window) {
+          const nfcReader = new NDEFReader();
           nfcReader.onreading = (e) => {
             const serialNumber = e.serialNumber ?? "NOT_FOUND";
             handleVerification(serialNumber);
@@ -92,7 +92,7 @@
             }, 5000);
           };
 
-          nfcReader.onerror = (error) => {
+          nfcReader.onreadingerror = (error) => {
             const errorResult1 = {
               success: false,
               errorMessage: error.message || "Unknown error occurred",
@@ -106,13 +106,11 @@
             };
             output_el.textContent = JSON.stringify(errorResult, null, 2); // Display error details
           };
-          nfcReader.start().catch((error) => {
-            document.getElementById("status").textContent =
-              "NFC reading failed. Please ensure NFC is enabled on your device.";
-          });
-        } else {
+        } 
+        else {
           document.getElementById("status").textContent =
             "NFC is not supported on this device. Please use a different device.";
+          document.getElementById("status").style.color = "red"
         }
       }
     </script>
