@@ -25,6 +25,7 @@
   </head>
   <body>
     <h1>NFC Verification Platform</h1>
+    <small>Version 1.2</small>
 
     <p id="status">Scanning for NFC tags...</p>
     <div id="output"></div>
@@ -70,6 +71,7 @@
       } else {
         // If no UID in URL, attempt NFC scanning (original functionality
         if ("NDEFReader" in window) {
+          console.log("checking...")
           const nfcReader = new NDEFReader();
           nfcReader.onreading = (e) => {
             const serialNumber = e.serialNumber ?? "NOT_FOUND";
@@ -104,13 +106,16 @@
               errorMessage: error.message || "Unknown error occurred",
               errorBody: error,
             };
-            output_el.textContent = JSON.stringify(errorResult, null, 2); // Display error details
+            output_el.textContent = JSON.stringify(errorResult2, null, 2); // Display error details
           };
         } 
         else {
+          console.log("nfc reader not found...")
+
           document.getElementById("status").textContent =
             "NFC is not supported on this device. Please use a different device.";
-          document.getElementById("status").style.color = "red"
+            // set color = red
+            document.getElementById("status").style.color = "red"
         }
       }
     </script>
