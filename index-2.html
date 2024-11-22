@@ -15,6 +15,7 @@
         border: 1px solid #ddd;
         border-radius: 5px;
         background: #f9f9f9;
+        color: rgb(72, 66, 66);
       }
       #output-help-text {
         margin-top: 4px;
@@ -27,9 +28,8 @@
       let statusEl;
       let output_el;
       var reader;
+
       var abortController = new AbortController();
-      //const READ_TIMEOUT = 60_000;
-      utf8decoder = new TextDecoder("utf8");
 
       function bufferToString(b) {
         var Int8Buffer = new Uint8Array(b);
@@ -49,27 +49,27 @@
           //This device doesn't have NFC capabilities.
           statusEl.textContent =
             "NFC is not supported on this device. Please use a different device.";
-          // set color = red
           statusEl.style.color = "red";
         }
+
         reader = new NDEFReader();
 
         reader.onreadingerror = (e) => {
           console.error(e);
-          output_el.innerText = "1 \n" + JSON.stringify(e);
+          showOutput(false, e, "Error code # 1");
         };
         reader.onreading = (e) => {
-          output_el.textContent = e.serialNumber;
-        };
-
-        reader.onreadingerror = (e) => {
-          console.error(e);
-          output_el.innerText = "1 \n" + JSON.stringify(e);
+          const data = {
+            serialNumber: e.serialNumber,
+            body: e,
+          };
+          showOutput(true, data, "Working...");
         };
       }
 
       function scanTag() {
         console.log("scanning tag...");
+        statusEl.textContent = "Scanning for NFC tags...";
         reader
           .scan({ signal: abortController.signal })
           .then(() => {})
@@ -79,12 +79,9 @@
             if (!e) {
               return;
             }
-            if (e.isError) {
-              output_el.innerText = "1 \n" + JSON.stringify(e);
-            } else {
-              if (e.reasonText) {
-                output_el.innerText = "1 \n" + JSON.stringify(e.reasonText);
-              }
+            if (e.isError) showOutput(false, e, "Error # 2");
+            else {
+              if (e.reasonText) showOutput(false, e.reasonText, "Error # 3");
             }
           });
       }
@@ -102,11 +99,21 @@
           scanTag();
         }, 5000);
       };
+
+      function showOutput(success, data, message) {
+        const response = {
+          success: success,
+          data: data,
+          message: message,
+        };
+
+        output_el.textContent = JSON.stringify(response, null, 2); // Display output
+      }
     </script>
   </head>
   <body>
     <h1>NFC Verification Platform</h1>
-    <small>Version 2.1</small>
+    <small>Version 2.2</small>
 
     <p id="status">Scanning for NFC tags...</p>
     <div id="output"></div>
