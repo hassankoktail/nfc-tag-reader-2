@@ -15,7 +15,6 @@
         border: 1px solid #ddd;
         border-radius: 5px;
         background: #f9f9f9;
-        color: rgb(72, 66, 66);
       }
       #output-help-text {
         margin-top: 4px;
@@ -23,113 +22,18 @@
         color: gray;
       }
     </style>
+  </head>
+  <body>
+    <h1>NFC Verification Platform</h1>
+    <small>Version 1.3</small>
+
+    <p id="status">Scanning for NFC tags...</p>
+    <div id="output"></div>
+    <div id="output-help-text">Output of the scanning will go here</div>
 
     <script>
-      let statusEl;
-      let output_el;
-      var reader;
-
-      var abortController = new AbortController();
-
-      function bufferToString(b) {
-        var Int8Buffer = new Uint8Array(b);
-        var retVal = "";
-        for (var i = 0; i < Int8Buffer.length; ++i) {
-          retVal += " " + Int8Buffer[i].toString(16).padStart(2, "0");
-        }
-        return retVal;
-      }
-
-      function setup() {
-        console.log("setup initiated...");
-        statusEl = document.getElementById("status");
-        output_el = document.getElementById("output");
-
-        if (!("NDEFReader" in window)) {
-          //This device doesn't have NFC capabilities.
-          statusEl.textContent =
-            "NFC is not supported on this device. Please use a different device.";
-          statusEl.style.color = "red";
-        }
-        reader = new NDEFReader();
-
-        reader.onreadingerror = (e) => {
-          console.error(e);
-          showOutput(false, e, "Error code # 1");
-        };
-        reader.onreading = (e) => {
-          const data = {
-            serialNumber: e.serialNumber ?? "NOT_FOUND",
-            body: e,
-          };
-          showOutput(
-            true,
-            data,
-            "Success. You will be redirected in 5 seconds"
-          );
-
-          setTimeout(() => {
-            handleVerification(data.serialNumber);
-          }, 5000);
-        };
-      }
-
-      function scanTag() {
-        console.log("scanning tag...");
-        statusEl.textContent = "Scanning for NFC tags...";
-
-        // Check if a UID is passed via URL (simulate NFC scan)
-        const params = new URLSearchParams(window.location.search);
-        const uidFromUrl = params.get("uid");
-
-        if (uidFromUrl) {
-          // If UID is provided in URL, handle the verification
-          document.getElementById(
-            "status"
-          ).textContent = `Verifying UID: ${uidFromUrl}`;
-          handleVerification(uidFromUrl);
-        } else {
-          reader
-            .scan({ signal: abortController.signal })
-            .then(() => {})
-            .catch((e) => {
-              console.error(e);
-
-              if (!e) {
-                return;
-              }
-              if (e.isError) showOutput(false, e, "Error # 2");
-              else {
-                if (e.reasonText) showOutput(false, e.reasonText, "Error # 3");
-              }
-            });
-        }
-      }
-
-      function abortScan() {
-        abortController.abort({
-          isError: false,
-          reasonText: "user requested scan termination",
-        });
-      }
-
-      window.onload = () => {
-        setup();
-        setTimeout(() => {
-          scanTag();
-        }, 3000);
-      };
-
-      function showOutput(success, data, message) {
-        const response = {
-          success: success,
-          data: data,
-          message: message,
-        };
-
-        output_el.textContent = JSON.stringify(response, null, 2); // Display output
-      }
-
+      const output_el = document.getElementById("output");
+      // Function to handle verification based on UID (either from NFC or URL)
       function handleVerification(uid) {
         fetch("uids.json")
           .then((response) => {
@@ -153,28 +57,68 @@
             document.body.innerHTML = "<p>Error loading UID data.</p>";
           });
       }
-    </script>
-  </head>
-  <body>
-    <h1>NFC Verification Platform</h1>
-    <small>Version 2.4</small>
 
-    <p id="status">Scanning will start in 3 seconds...</p>
-    <div id="output"></div>
-    <div id="output-help-text">Output of the scanning will go here</div>
+      // Check if a UID is passed via URL (simulate NFC scan)
+      const params = new URLSearchParams(window.location.search);
+      const uidFromUrl = params.get("uid");
 
-    <script>
-      setTimeout(() => {
-        // Check if a UID is passed via URL (simulate NFC scan)
-        const params = new URLSearchParams(window.location.search);
-        const uidFromUrl = params.get("uid");
+      if (uidFromUrl) {
+        // If UID is provided in URL, handle the verification
+        document.getElementById(
+          "status"
+        ).textContent = `Verifying UID: ${uidFromUrl}`;
+        handleVerification(uidFromUrl);
+      } else {
+        // If no UID in URL, attempt NFC scanning (original functionality
+        if ("NDEFReader" in window) {
+          console.log("checking...")
+          const nfcReader = new NDEFReader();
+          nfcReader.onreading = (e) => {
+            const serialNumber = e.serialNumber ?? "NOT_FOUND";
+            handleVerification(serialNumber);
+            const all_data = e ?? null;
 
-        if (uidFromUrl) {
-          // If UID is provided in URL, handle the verification
-          statusEl.textContent = `Verifying UID: ${uidFromUrl}`;
-          handleVerification(uidFromUrl);
+            output_el.textContent = JSON.stringify(
+              {
+                success: true,
+                serialNumber: serialNumber,
+                data: all_data,
+                message: 'You will be redirected in 5 seconds'
+              },
+              null,
+              2
+            ); // Display result as JSON
+
+            setTimeout(() => {
+              handleVerification(serialNumber);
+            }, 5000);
+          };
+
+          nfcReader.onreadingerror = (error) => {
+            alert("error")
+            const errorResult1 = {
+              success: false,
+              errorMessage: error.message || "Unknown error occurred",
+            };
+            output_el.textContent = JSON.stringify(errorResult1, null, 2); // Display error details
+
+            const errorResult2 = {
+              success: false,
+              errorMessage: error.message || "Unknown error occurred",
+              errorBody: error,
+            };
+            output_el.textContent = JSON.stringify(errorResult2, null, 2); // Display error details
+          };
+        } 
+        else {
+          console.log("nfc reader not found...")
+
+          document.getElementById("status").textContent =
+            "NFC is not supported on this device. Please use a different device.";
+            // set color = red
+            document.getElementById("status").style.color = "red"
         }
-      }, 2000);
+      }
     </script>
   </body>
 </html>
